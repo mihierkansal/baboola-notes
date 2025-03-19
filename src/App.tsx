@@ -1,11 +1,11 @@
-import solidLogo from "./assets/solid.svg";
-import viteLogo from "/vite.svg";
 import "./App.css";
 import { initialize } from "@frontegg/js";
 import { createSignal, Match, Switch } from "solid-js";
+import { LoggedInView } from "./LoggedInView";
 
 function App() {
   const authStatus = createSignal<boolean>();
+  const token = createSignal<string>();
   const app = initialize({
     contextOptions: {
       baseUrl: import.meta.env.VITE_FRONTEGG_DOMAIN,
@@ -18,9 +18,9 @@ function App() {
     app.store.subscribe(() => {
       const { auth } = app.store.getState();
       if (!auth.isLoading) {
-        if (auth.isAuthenticated) {
+        if (auth.isAuthenticated && auth.user?.accessToken) {
+          token[1](auth.user.accessToken);
           authStatus[1](true);
-          console.log(auth.user?.accessToken);
         } else {
           app.loginWithRedirect();
         }
@@ -32,35 +32,10 @@ function App() {
     <>
       <Switch>
         <Match when={authStatus[0]() === true}>
-          <div>
-            <a href="https://vite.dev" target="_blank">
-              <img src={viteLogo} class="logo" alt="Vite logo" />
-            </a>
-            <a href="https://solidjs.com" target="_blank">
-              <img src={solidLogo} class="logo solid" alt="Solid logo" />
-            </a>
-          </div>
-          <h1>Vite + Solid</h1>
-          <div class="card">
-            <button
-              onClick={() => {
-                app.logout();
-                authStatus[1](false);
-              }}
-            >
-              Logout
-            </button>
-            <p>
-              Edit <code>src/App.tsx</code> and save to test HMR
-            </p>
-          </div>
-
-          <p class="read-the-docs">
-            Click on the Vite and Solid logos to learn more
-          </p>
+          <LoggedInView token={token[0]()!} app={app} authStatus={authStatus} />
         </Match>
         <Match when={authStatus[0]() === undefined}>
-          <p>Loading...</p>
+          <div class="loader"></div>
         </Match>
         <Match when={authStatus[0]() === false}>
           <p>You're logged out.</p>
