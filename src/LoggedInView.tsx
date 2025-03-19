@@ -168,6 +168,7 @@ export function LoggedInView(props: {
               <div class="nav-item notebook">Book 2</div>
               <div class="nav-item notebook">Book 3</div>
               <div class="nav-item notebook">Book 4</div>
+              <div class="newnotebook">+ Create Notebook</div>
             </div>
 
             <div
