@@ -1,7 +1,8 @@
 import { FronteggApp } from "@frontegg/js";
-import { createSignal, Match, Show, Switch } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { setSearchParam } from "./updateSearchParams";
 import { Stickies } from "./Stickies";
+import { Notebook } from "./Notebook";
 export enum ScreenSizes {
   Mobile = 980,
 }
@@ -11,10 +12,21 @@ export interface Sticky {
   createdAt: string;
   updatedAt: string;
 }
-
+export interface Page {
+  title: string;
+  _id: any;
+  createdAt: string;
+  content: string;
+}
+export interface Notebook {
+  name: string;
+  _id: any;
+  createdAt: string;
+  pages: Page[];
+}
 export interface User {
   _id: any;
-  notebooks: any[];
+  notebooks: Notebook[];
   stickies: Sticky[];
   email: string;
 }
@@ -24,6 +36,7 @@ export function LoggedInView(props: {
   authStatus: [() => boolean | undefined, (value: boolean | undefined) => void];
 }) {
   const stickies = createSignal<Sticky[]>([]);
+  const notebooks = createSignal<Notebook[]>([]);
   const user = createSignal<User>();
 
   fetch(
@@ -39,8 +52,9 @@ export function LoggedInView(props: {
   )
     .then(async (res) => {
       const data: User = await res.json();
-      user[1](data);
       stickies[1](data.stickies);
+      notebooks[1](data.notebooks);
+      user[1](data);
     })
     .catch(async (err) => {
       console.log(err);
@@ -69,6 +83,7 @@ export function LoggedInView(props: {
       params.get("selectedTab") ?? setSearchParam("selectedTab", defaultTab)
     );
     const navOpen = createSignal(false);
+    const creatingNotebookLoading = createSignal(false);
     return (
       <>
         <div
@@ -118,7 +133,8 @@ export function LoggedInView(props: {
                 <img
                   src="/Picture1.png"
                   style={{
-                    height: "1.5em",
+                    height: "1em",
+                    "margin-right": "0.5rem",
                   }}
                 />
                 Baboola Notes
@@ -164,11 +180,60 @@ export function LoggedInView(props: {
               >
                 Notebooks
               </h3>
-              <div class="nav-item notebook">Book 1</div>
-              <div class="nav-item notebook">Book 2</div>
-              <div class="nav-item notebook">Book 3</div>
-              <div class="nav-item notebook">Book 4</div>
-              <div class="newnotebook">+ Create Notebook</div>
+              <For each={notebooks[0]()}>
+                {(notebook) => {
+                  return (
+                    <>
+                      <div
+                        class={`nav-item notebook ${
+                          selectedTab[0]() === notebook._id ? "open" : ""
+                        }`}
+                        onClick={() => {
+                          selectedTab[1](notebook._id);
+                          setSearchParam("selectedTab", notebook._id);
+                        }}
+                      >
+                        {" "}
+                        {notebook.name}
+                      </div>
+                    </>
+                  );
+                }}
+              </For>
+              <div
+                class={`newitem ${
+                  creatingNotebookLoading[0]() ? "disabled" : ""
+                }`}
+                onClick={() => {
+                  creatingNotebookLoading[1](true);
+                  fetch(
+                    "https://baboola-notes-serverless-functions.netlify.app/.netlify/functions/new-notebook",
+                    {
+                      method: "POST",
+                      body: JSON.stringify({
+                        notebookName: `Notebook ${notebooks[0]().length + 1}`,
+                      }),
+                      headers: {
+                        "content-type": "application/json",
+                        "bab-auth": "Bearer " + props.token,
+                      },
+                    }
+                  ).then(async (res) => {
+                    const data: Notebook = await res.json();
+                    notebooks[1]([...notebooks[0](), data]);
+                    creatingNotebookLoading[1](false);
+                  });
+                }}
+              >
+                {creatingNotebookLoading[0]() ? (
+                  <>
+                    <div class="loaderonwhite btn" />
+                  </>
+                ) : (
+                  <>+</>
+                )}{" "}
+                Create Notebook
+              </div>
             </div>
 
             <div
@@ -194,9 +259,18 @@ export function LoggedInView(props: {
           <div
             style={{
               "margin-left": isMobile ? "1rem" : "",
+              "flex-grow": 1,
             }}
           >
-            <Switch>
+            <Switch
+              fallback={
+                <Notebook
+                  token={props.token}
+                  notebooks={notebooks}
+                  notebookId={selectedTab[0]()}
+                />
+              }
+            >
               <Match when={selectedTab[0]() === "stickies"}>
                 <Stickies token={props.token} stickies={stickies} />
               </Match>
