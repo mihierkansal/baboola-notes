@@ -346,13 +346,48 @@ export function Notebook(props: {
                   End sub-list
                 </span>
               </div>
-              <h3
+              <input
+                class="h3"
                 style={{
                   outline: "none",
                   padding: "1rem",
                 }}
                 contentEditable
-                innerHTML={selectedPage()?.title}
+                onInput={(e) => {
+                  fetch(
+                    "https://baboola-notes-serverless-functions.netlify.app/.netlify/functions/update-page",
+                    {
+                      method: "POST",
+                      body: JSON.stringify({
+                        notebookId: selectedNotebook()._id,
+                        newName: e.target.value,
+                        pageId: selectedPage()!._id,
+                      }),
+                      headers: {
+                        "content-type": "application/json",
+                        "bab-auth": "Bearer " + props.token,
+                      },
+                    }
+                  );
+                  props.notebooks[1]((v) => {
+                    return [
+                      ...v.map((item) => {
+                        if (item._id === selectedNotebook()!._id) {
+                          item.pages = [
+                            ...item.pages.map((page) => {
+                              if (page._id === selectedPage()!._id) {
+                                page.title = e.target.value;
+                              }
+                              return { ...page };
+                            }),
+                          ];
+                        }
+                        return { ...item };
+                      }),
+                    ];
+                  });
+                }}
+                value={selectedPage()?.title}
               />
               <div ref={editorRef} class="page-main grow"></div>
             </div>
