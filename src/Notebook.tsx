@@ -1,20 +1,17 @@
 import StarterKit from "@tiptap/starter-kit";
 import {
+  createEffect,
   createMemo,
   createSignal,
   For,
-  onCleanup,
   Show,
   Signal,
 } from "solid-js";
 import { Notebook as NotebookType, Page } from "./LoggedInView";
-import {
-  getSearchParam,
-  removeSearchParam,
-  setSearchParam,
-} from "./updateSearchParams";
+import { getSearchParam, setSearchParam } from "./updateSearchParams";
 import { createEditorTransaction, createTiptapEditor } from "solid-tiptap";
 import Underline from "@tiptap/extension-underline";
+import Image from "@tiptap/extension-image";
 
 export function Notebook(props: {
   notebookId: any;
@@ -22,15 +19,14 @@ export function Notebook(props: {
   token: string;
 }) {
   console.log(`Notebook rendered`);
-  onCleanup(() => {
-    removeSearchParam("selectedPage");
-  });
+
   const selectedNotebook = createMemo(() => {
     console.log(props.notebooks[0]());
     return props.notebooks[0]().find(
       (notebook) => notebook._id === props.notebookId
     )!;
   });
+
   const newPageLoading = createSignal(false);
   const selectedPageId = createSignal(getSearchParam("selectedPage"));
   if (!selectedPageId[0]() && selectedNotebook().pages.length > 0) {
@@ -77,11 +73,25 @@ export function Notebook(props: {
     return selectedNotebook().pages.find((p) => p._id === selectedPageId[0]());
   });
 
+  createEffect(() => {
+    if (selectedNotebook().pages.length && !selectedPage()) {
+      selectedPageId[1](
+        setSearchParam("selectedPage", selectedNotebook().pages[0]._id)
+      );
+    }
+  });
   let editorRef!: HTMLDivElement;
 
   const editor = createTiptapEditor(() => ({
     element: editorRef,
-    extensions: [StarterKit, Underline],
+    extensions: [
+      StarterKit,
+      Underline,
+      Image.configure({
+        allowBase64: true,
+        inline: true,
+      }),
+    ],
     onUpdate: ({ editor }) => {
       fetch(
         "https://baboola-notes-serverless-functions.netlify.app/.netlify/functions/update-page",
@@ -113,9 +123,28 @@ export function Notebook(props: {
         return v;
       });
     },
-    content: selectedPage()!.content,
+    content: selectedPage()?.content,
   }));
-
+  document.onpaste = (e) => {
+    const item = e.clipboardData?.items[0];
+    if (!item?.type.includes("image/")) {
+      return;
+    }
+    if (!editor()!.isActive) {
+      return;
+    }
+    e.preventDefault();
+    const file = item.getAsFile();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageSrc = e.target!.result!.toString(); // Base64 image source
+      console.log(imageSrc);
+      editor()!.commands.setImage({
+        src: imageSrc,
+      });
+    };
+    reader.readAsDataURL(file!);
+  };
   const isItal = createEditorTransaction(editor, (editor) =>
     editor?.isActive("italic")
   );
@@ -124,6 +153,12 @@ export function Notebook(props: {
   );
   const isBold = createEditorTransaction(editor, (editor) =>
     editor?.isActive("bold")
+  );
+  const isUl = createEditorTransaction(editor, (editor) =>
+    editor?.isActive("bulletList")
+  );
+  const isOl = createEditorTransaction(editor, (editor) =>
+    editor?.isActive("orderedList")
   );
 
   return (
@@ -136,7 +171,16 @@ export function Notebook(props: {
           "margin-right": "3rem",
         }}
       >
-        <h2>{selectedNotebook().name}</h2>
+        <h2>
+          <span
+            contentEditable
+            style={{
+              outline: "none",
+            }}
+          >
+            {selectedNotebook().name}
+          </span>
+        </h2>
         <div class="notebook-cnt grow">
           <Show
             when={selectedNotebook().pages.length}
@@ -234,13 +278,37 @@ export function Notebook(props: {
                 >
                   U
                 </u>
+                <span
+                  style={{
+                    "aspect-ratio": "4",
+                  }}
+                  onClick={() => {
+                    editor()?.chain().toggleOrderedList().focus().run();
+                  }}
+                  class={` ${isOl() ? "on" : ""}`}
+                >
+                  Numbered List
+                </span>
+                <span
+                  style={{
+                    "aspect-ratio": "3",
+                  }}
+                  onClick={() => {
+                    editor()?.chain().toggleBulletList().focus().run();
+                  }}
+                  class={` ${isUl() ? "on" : ""}`}
+                >
+                  Bulleted List
+                </span>
               </div>
               <h3
                 style={{
+                  outline: "none",
                   padding: "1rem",
                 }}
+                contentEditable
               >
-                {selectedPage()!.title}
+                {selectedPage()?.title}
               </h3>
               <div ref={editorRef} class="page-main grow"></div>
             </div>
