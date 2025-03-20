@@ -10,7 +10,11 @@
   },
   "dependencies": {
     "@frontegg/js": "^7.61.0",
-    "solid-js": "^1.9.5"
+    "@tiptap/core": "^2.11.5",
+    "@tiptap/extension-underline": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
+    "solid-js": "^1.9.5",
+    "solid-tiptap": "^0.7.0"
   },
   "devDependencies": {
     "typescript": "~5.7.2",

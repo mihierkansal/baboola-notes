@@ -1,3 +1,4 @@
+import StarterKit from "@tiptap/starter-kit";
 import {
   createMemo,
   createSignal,
@@ -12,6 +13,8 @@ import {
   removeSearchParam,
   setSearchParam,
 } from "./updateSearchParams";
+import { createEditorTransaction, createTiptapEditor } from "solid-tiptap";
+import Underline from "@tiptap/extension-underline";
 
 export function Notebook(props: {
   notebookId: any;
@@ -73,6 +76,56 @@ export function Notebook(props: {
   const selectedPage = createMemo(() => {
     return selectedNotebook().pages.find((p) => p._id === selectedPageId[0]());
   });
+
+  let editorRef!: HTMLDivElement;
+
+  const editor = createTiptapEditor(() => ({
+    element: editorRef,
+    extensions: [StarterKit, Underline],
+    onUpdate: ({ editor }) => {
+      fetch(
+        "https://baboola-notes-serverless-functions.netlify.app/.netlify/functions/update-page",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            notebookId: selectedNotebook()._id,
+            newContent: editor.getHTML(),
+            pageId: selectedPage()!._id,
+          }),
+          headers: {
+            "content-type": "application/json",
+            "bab-auth": "Bearer " + props.token,
+          },
+        }
+      );
+      props.notebooks[1]((v) => {
+        v = v.map((n) => {
+          if (n._id === selectedNotebook()._id) {
+            n.pages = n.pages.map((p) => {
+              if (p._id === selectedPage()?._id) {
+                p.content = editor.getHTML();
+              }
+              return p;
+            });
+          }
+          return n;
+        });
+        return v;
+      });
+    },
+    content: selectedPage()!.content,
+  }));
+
+  const isItal = createEditorTransaction(editor, (editor) =>
+    editor?.isActive("italic")
+  );
+  const isUnderln = createEditorTransaction(editor, (editor) =>
+    editor?.isActive("underline")
+  );
+  const isBold = createEditorTransaction(editor, (editor) =>
+    editor?.isActive("bold")
+  );
+
   return (
     <>
       <div
@@ -156,6 +209,32 @@ export function Notebook(props: {
                 height: "100%",
               }}
             >
+              <div class="toolbar">
+                <b
+                  onClick={() => {
+                    editor()?.chain().toggleBold().focus().run();
+                  }}
+                  class={` ${isBold() ? "on" : ""}`}
+                >
+                  B
+                </b>
+                <i
+                  onClick={() => {
+                    editor()?.chain().toggleItalic().focus().run();
+                  }}
+                  class={` ${isItal() ? "on" : ""}`}
+                >
+                  I
+                </i>
+                <u
+                  onClick={() => {
+                    editor()?.chain().toggleUnderline().focus().run();
+                  }}
+                  class={` ${isUnderln() ? "on" : ""}`}
+                >
+                  U
+                </u>
+              </div>
               <h3
                 style={{
                   padding: "1rem",
@@ -163,42 +242,7 @@ export function Notebook(props: {
               >
                 {selectedPage()!.title}
               </h3>
-              <textarea
-                placeholder="Type here"
-                onInput={(e) => {
-                  fetch(
-                    "https://baboola-notes-serverless-functions.netlify.app/.netlify/functions/update-page",
-                    {
-                      method: "POST",
-                      body: JSON.stringify({
-                        notebookId: selectedNotebook()._id,
-                        newContent: e.target.value,
-                        pageId: selectedPage()!._id,
-                      }),
-                      headers: {
-                        "content-type": "application/json",
-                        "bab-auth": "Bearer " + props.token,
-                      },
-                    }
-                  );
-                  props.notebooks[1]((v) => {
-                    v = v.map((n) => {
-                      if (n._id === selectedNotebook()._id) {
-                        n.pages = n.pages.map((p) => {
-                          if (p._id === selectedPage()?._id) {
-                            p.content = e.target.value;
-                          }
-                          return p;
-                        });
-                      }
-                      return n;
-                    });
-                    return v;
-                  });
-                }}
-                class="page-main grow"
-                value={selectedPage()!.content}
-              ></textarea>
+              <div ref={editorRef} class="page-main grow"></div>
             </div>
           </Show>
         </div>
