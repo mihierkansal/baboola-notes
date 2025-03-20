@@ -171,16 +171,41 @@ export function Notebook(props: {
           "margin-right": "3rem",
         }}
       >
-        <h2>
-          <span
-            contentEditable
-            style={{
-              outline: "none",
-            }}
-          >
-            {selectedNotebook().name}
-          </span>
-        </h2>
+        <input
+          contentEditable
+          style={{
+            outline: "none",
+          }}
+          class="h2"
+          onInput={(e) => {
+            fetch(
+              "https://baboola-notes-serverless-functions.netlify.app/.netlify/functions/rename-notebook",
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  notebook: selectedNotebook()._id,
+                  newName: e.target.value,
+                }),
+                headers: {
+                  "content-type": "application/json",
+                  "bab-auth": "Bearer " + props.token,
+                },
+              }
+            );
+            props.notebooks[1]((v) => {
+              return [
+                ...v.map((n) => {
+                  if (n._id === selectedNotebook()._id) {
+                    n.name = e.target.value;
+                  }
+                  return { ...n };
+                }),
+              ];
+            });
+          }}
+          value={selectedNotebook().name}
+        ></input>
+
         <div class="notebook-cnt grow">
           <Show
             when={selectedNotebook().pages.length}
@@ -291,7 +316,7 @@ export function Notebook(props: {
                 </span>
                 <span
                   style={{
-                    "aspect-ratio": "3",
+                    "aspect-ratio": "3.5",
                   }}
                   onClick={() => {
                     editor()?.chain().toggleBulletList().focus().run();
@@ -300,6 +325,26 @@ export function Notebook(props: {
                 >
                   Bulleted List
                 </span>
+                <span
+                  style={{
+                    "aspect-ratio": 3.5,
+                  }}
+                  onClick={() => {
+                    editor()!.chain().focus().sinkListItem("listItem").run();
+                  }}
+                >
+                  Start sub-list
+                </span>
+                <span
+                  style={{
+                    "aspect-ratio": 3.5,
+                  }}
+                  onClick={() => {
+                    editor()!.chain().focus().liftListItem("listItem").run();
+                  }}
+                >
+                  End sub-list
+                </span>
               </div>
               <h3
                 style={{
@@ -307,9 +352,8 @@ export function Notebook(props: {
                   padding: "1rem",
                 }}
                 contentEditable
-              >
-                {selectedPage()?.title}
-              </h3>
+                innerHTML={selectedPage()?.title}
+              />
               <div ref={editorRef} class="page-main grow"></div>
             </div>
           </Show>

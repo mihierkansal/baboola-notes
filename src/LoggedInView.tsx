@@ -117,7 +117,7 @@ export function LoggedInView(props: {
             class="nav-0"
             style={
               isMobile
-                ? `position: fixed; z-index:1000; ${
+                ? `position: fixed; z-index:10000; ${
                     navOpen[0]() ? "" : "transform:translateX(-115%)"
                   }`
                 : ""
