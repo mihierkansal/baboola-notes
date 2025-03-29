@@ -456,3 +456,7 @@ ol,
 ul {
   padding-left: 2rem;
 }
+
+img {
+  max-width: 100%;
+}
