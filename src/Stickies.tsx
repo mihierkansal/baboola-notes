@@ -48,6 +48,16 @@ export function Stickies(props: { stickies: Signal<Sticky[]>; token: string }) {
                     value={sticky.content}
                     placeholder="Type here"
                     onInput={(e) => {
+                      props.stickies[1]((prev) => {
+                        const newStickies = [...prev];
+                        const index = newStickies.findIndex(
+                          (s) => s._id === sticky._id
+                        );
+                        if (index !== -1) {
+                          newStickies[index].content = e.target.value;
+                        }
+                        return newStickies;
+                      });
                       fetch(
                         "https://baboola-notes-serverless-functions.netlify.app/.netlify/functions/save-sticky",
                         {
